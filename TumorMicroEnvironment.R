@@ -1,52 +1,50 @@
-# setwd("C:/Users/qgong/OneDrive - City of Hope National Medical Center/B.TME")
-load("B.TME.R.RData")
-if(FALSE){
 library(reshape2)
-dc <- read.csv("Steidl.2010.CHL.CIBERSORT.Output.csv")
-cells <- colnames(dc)[2:23]
-dc <- melt(dc[,1:23],id.vars = c('Input_Sample'))
-colnames(dc) <- c('Samples', 'Celltypes', 'Content')
+# dc <- read.csv("Steidl.2010.CHL.CIBERSORT.Output.csv")
+# cells <- colnames(dc)[2:23]
+# dc <- melt(dc[, 1:23],id.vars = c('Input_Sample'))
+# colnames(dc) <- c('Samples', 'Celltypes', 'Content')
+# 
+# dg <- read.table("GDS4222.mt.txt", header = T)
+# 
+# # filter out genes lower 30% overall expression
+# rowSums <- apply(dg[, -1], 1, sum)
+# q30 <- quantile(rowSums,probs = 0.3)
+# filter <- apply(dg[,-1], 1, function(x) sum(x) > q30)
+# dg <- dg[filter, ]
+# 
+# # filter out genes with lower 70% variance
+# rowVar <- apply(dg[, -1], 1, var)
+# q70 <- quantile(rowVar, probs = 0.7)
+# filter <- apply(dg[, -1], 1, function(x) var(x) > q70)
+# dg <- dg[filter, ]
+# 
+# gcor <- c()
+# gcorp <- c()
+# 
+# # identify correlation
+# for (i in 1:length(cells)){
+#   for (j in 1:nrow(dg)){
+#     cell_ct <- dc[which(dc$Celltypes == cells[i]),]
+#     gev <- data.frame(Samples = colnames(dg[-1]), log2var = as.numeric(dg[j, -1]))
+#     #    colnames(gev)[2] <- as.character(dg[j,1])
+#     combine <- merge(cell_ct, gev, by = "Samples")
+#     out_name <- paste(dg[j, 1], cells[i], sep = ".")
+#     gcor[out_name] <- cor(combine$Content, combine$log2var)
+#     gcorp[out_name] <- cor.test(combine$Content, combine$log2var)$p.value
+#   }
+# }
+# dcor <- data.frame(names(gcor), gcor, gcorp)
+# for(i in 1:nrow(dcor)){
+#   gene_cell <- strsplit(as.character(dcor$names.gcor.[i]), ".", fixed = T)[[1]]
+#   dcor$gene[i] <- gene_cell[1]
+#   dcor$cell[i] <- gene_cell[2]
+# }
+# dcor <- dcor[, 2:5]
+# dcor <- dcor[order(dcor$gcorp),]
+# write.csv(dcor, "Gene_TME_correlation.csv", row.names = F)
+# save.image("B.TME.R.RData")
+load("B.TME.R.RData")
 
-dg <- read.table("GDS4222.mt.txt", header=T)
-
-# filter out genes lower 30% overall expression
-rowSums <- apply(dg[, -1], 1, sum)
-q30 <- quantile(rowSums,probs = 0.3)
-filter <- apply(dg[,-1], 1, function(x) sum(x) > q30)
-dg <- dg[filter, ]
-
-# filter out genes with lower 70% variance
-rowVar <- apply(dg[, -1], 1, var)
-q70 <- quantile(rowVar, probs = 0.7)
-filter <- apply(dg[, -1], 1, function(x) var(x) > q70)
-dg <- dg[filter, ]
-
-gcor <- c()
-gcorp <- c()
-
-# identify correlation
-for (i in 1:length(cells)){
-  for (j in 1:nrow(dg)){
-    cell_ct <- dc[which(dc$Celltypes == cells[i]),]
-    gev <- data.frame(Samples = colnames(dg[-1]), log2var = as.numeric(dg[j, -1]))
-    #    colnames(gev)[2] <- as.character(dg[j,1])
-    combine <- merge(cell_ct, gev, by = "Samples")
-    out_name <- paste(dg[j, 1], cells[i], sep = ".")
-    gcor[out_name] <- cor(combine$Content, combine$log2var)
-    gcorp[out_name] <- cor.test(combine$Content, combine$log2var)$p.value
-  }
-}
-dcor <- data.frame(names(gcor), gcor, gcorp)
-for(i in 1:nrow(dcor)){
-  gene_cell <- strsplit(as.character(dcor$names.gcor.[i]), ".", fixed = T)[[1]]
-  dcor$gene[i] <- gene_cell[1]
-  dcor$cell[i] <- gene_cell[2]
-}
-dcor <- dcor[, 2:5]
-dcor <- dcor[order(dcor$gcorp),]
-write.csv(dcor, "Gene_TME_correlation.csv", row.names = F)
-save.image("B.TME.R.RData")
-}
 
 library(ggplot2)
 library(Rmisc)
@@ -174,10 +172,11 @@ pdf("PFS.plot.pdf")
 CellTypes <- colnames(tdc)[2:23]
 for (cell in CellTypes){
   MedCont <- median(tdc[, cell])
-  pfs <- tdc[,c('Input.Sample', cell, 'CODENAPFS','PFS')]
+  pfs <- tdc[, c('Input.Sample', cell, 'CODENAPFS','PFS')]
   pfs$High <- pfs[, 2] > MedCont
   survp <- survdiff(Surv(PFS, CODENAPFS) ~ High, data = pfs)
   survp <- 1 - pchisq(survp$chisq, length(survp$n) - 1)
+  survp <- p.adjust(survp, n = 22) # adjust for multiple comparison
   if(survp < 0.05){
     High.surv <- survfit(Surv(PFS, CODENAPFS) ~ High, data = pfs)
     FigTitle <- paste0(cell,">",MedCont,"; p=",survp)
@@ -194,6 +193,7 @@ for (cell in CellTypes){
   os$High <- os[, 2] > MedCont
   survp <- survdiff(Surv(OS, CODENAOS) ~ High, data = os)
   survp <- 1 - pchisq(survp$chisq, length(survp$n) - 1)
+  survp <- p.adjust(survp, n = 22)
   if(survp < 0.05){
     High.surv <- survfit(Surv(OS, CODENAOS) ~ High, data = os)
     FigTitle <- paste0(cell, ">", MedCont, "; p=", survp)
